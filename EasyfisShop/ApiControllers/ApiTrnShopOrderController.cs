@@ -289,7 +289,7 @@ namespace EasyfisShop.ApiControllers
                                     ShopOrderStatusId = shopOrderStatusId,
                                     ShopOrderStatusDate = objShopOrder.ShopOrderStatusDate,
                                     ShopGroupId = shopGroupId,
-                                    Particulars = "Imported from CSV",
+                                    Particulars = objShopOrder.Particulars,
                                     Status = null,
                                     IsPrinted = false,
                                     IsLocked = true,
