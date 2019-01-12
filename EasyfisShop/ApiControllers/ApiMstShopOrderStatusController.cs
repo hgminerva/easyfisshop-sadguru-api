@@ -35,7 +35,7 @@ namespace EasyfisShop.ApiControllers
                                         UpdatedDateTime = d.UpdatedDateTime.ToShortDateString()
                                     };
 
-            return shopOrderStatuses.OrderByDescending(d => d.Id).ToList();
+            return shopOrderStatuses.ToList();
         }
 
         // =====================

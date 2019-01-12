@@ -101,7 +101,7 @@ namespace EasyfisShop.ApiControllers
                             UnitId = d.UnitId
                         };
 
-            return items.OrderByDescending(d => d.Id).ToList();
+            return items.OrderByDescending(d => d.Item).ToList();
         }
 
         // ============================
@@ -134,7 +134,7 @@ namespace EasyfisShop.ApiControllers
                                         ShopOrderStatus = d.ShopOrderStatus
                                     };
 
-            return shopOrderStatuses.OrderByDescending(d => d.Id).ToList();
+            return shopOrderStatuses.ToList();
         }
 
         // ========================================
@@ -151,7 +151,7 @@ namespace EasyfisShop.ApiControllers
                                  ShopGroup = d.ShopGroup
                              };
 
-            return shopGroups.OrderByDescending(d => d.Id).ToList();
+            return shopGroups.ToList();
         }
 
         // ==============================
@@ -205,6 +205,8 @@ namespace EasyfisShop.ApiControllers
 
                     if (objShopOrders.Any())
                     {
+                        Int32 count = 1;
+
                         List<Entities.TrnShopOrder> newShopOrders = new List<Entities.TrnShopOrder>();
                         foreach (var objShopOrder in objShopOrders)
                         {
@@ -234,7 +236,7 @@ namespace EasyfisShop.ApiControllers
                             }
 
                             Int32 shopOrderStatusId = 0;
-                            var shopOrderStatus = from d in db.MstShopOrderStatus where d.ShopOrderStatusCode.Equals(objShopOrder.ShopOrderStatusCode) select d;
+                            var shopOrderStatus = from d in db.MstShopOrderStatus select d;
                             if (shopOrderStatus.Any())
                             {
                                 shopOrderStatusId = shopOrderStatus.FirstOrDefault().Id;
@@ -244,14 +246,14 @@ namespace EasyfisShop.ApiControllers
                                 isValid = false;
 
                                 responseStatusCode = HttpStatusCode.NotFound;
-                                responseMessage = "Shop order status code: " + objShopOrder.ShopOrderStatusCode + " not found.";
+                                responseMessage = "No shop order status";
 
                                 newShopOrders = new List<Entities.TrnShopOrder>();
                                 break;
                             }
 
                             Int32 shopGroupId = 0;
-                            var shopGroup = from d in db.MstShopGroups where d.ShopGroupCode.Equals(objShopOrder.ShopGroupCode) select d;
+                            var shopGroup = from d in db.MstShopGroups select d;
                             if (shopGroup.Any())
                             {
                                 shopGroupId = shopGroup.FirstOrDefault().Id;
@@ -261,17 +263,17 @@ namespace EasyfisShop.ApiControllers
                                 isValid = false;
 
                                 responseStatusCode = HttpStatusCode.NotFound;
-                                responseMessage = "Shop group code: " + objShopOrder.ShopGroupCode + " not found.";
+                                responseMessage = "No shop group";
 
                                 newShopOrders = new List<Entities.TrnShopOrder>();
                                 break;
                             }
 
-                            var defaultSPNumber = "0000000001";
+                            var defaultSPNumber = FillLeadingZeroes(count, 10);
                             var lastShopOrder = from d in db.TrnShopOrders.OrderByDescending(d => d.Id) where d.BranchId == currentUser.FirstOrDefault().BranchId select d;
                             if (lastShopOrder.Any())
                             {
-                                var SPNumber = Convert.ToInt32(lastShopOrder.FirstOrDefault().SPNumber) + 0000000001;
+                                var SPNumber = (Convert.ToInt32(lastShopOrder.FirstOrDefault().SPNumber) + 0000000001) + count;
                                 defaultSPNumber = FillLeadingZeroes(SPNumber, 10);
                             }
 
@@ -287,7 +289,7 @@ namespace EasyfisShop.ApiControllers
                                     UnitId = unitId,
                                     Amount = objShopOrder.Amount,
                                     ShopOrderStatusId = shopOrderStatusId,
-                                    ShopOrderStatusDate = objShopOrder.ShopOrderStatusDate,
+                                    ShopOrderStatusDate = objShopOrder.SPDate,
                                     ShopGroupId = shopGroupId,
                                     Particulars = objShopOrder.Particulars,
                                     Status = null,
@@ -299,6 +301,8 @@ namespace EasyfisShop.ApiControllers
                                     UpdatedDateTime = DateTime.Now.ToShortDateString()
                                 });
                             }
+
+                            count += 1;
                         }
 
                         if (newShopOrders.Any())
@@ -387,13 +391,13 @@ namespace EasyfisShop.ApiControllers
                         BranchId = currentUser.FirstOrDefault().BranchId,
                         SPNumber = defaultSPNumber,
                         SPDate = DateTime.Today,
-                        ItemId = item.OrderByDescending(d => d.Id).FirstOrDefault().Id,
+                        ItemId = item.OrderByDescending(d => d.Article).FirstOrDefault().Id,
                         Quantity = 0,
-                        UnitId = unit.OrderByDescending(d => d.Id).FirstOrDefault().Id,
+                        UnitId = unit.FirstOrDefault().Id,
                         Amount = 0,
-                        ShopOrderStatusId = shopOrderStatus.OrderByDescending(d => d.Id).FirstOrDefault().Id,
+                        ShopOrderStatusId = shopOrderStatus.FirstOrDefault().Id,
                         ShopOrderStatusDate = DateTime.Today,
-                        ShopGroupId = shopGroup.OrderByDescending(d => d.Id).FirstOrDefault().Id,
+                        ShopGroupId = shopGroup.FirstOrDefault().Id,
                         Particulars = "NA",
                         Status = null,
                         IsPrinted = false,
