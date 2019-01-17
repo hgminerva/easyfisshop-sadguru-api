@@ -212,6 +212,24 @@ namespace EasyfisShop.ApiControllers
                         {
                             Boolean isValid = true;
 
+                            var shopOrderObjects = from d in objShopOrders
+                                                   where d.SPNumber.Equals(objShopOrder.SPNumber)
+                                                   select d;
+
+                            if (shopOrderObjects.Any())
+                            {
+                                if (shopOrderObjects.Count() > 1)
+                                {
+                                    isValid = false;
+
+                                    responseStatusCode = HttpStatusCode.NotFound;
+                                    responseMessage = "Duplicate order number: " + objShopOrder.SPNumber;
+
+                                    newShopOrders = new List<Entities.TrnShopOrder>();
+                                    break;
+                                }
+                            }
+
                             Int32 itemId = 0, unitId = 0;
                             var item = from d in db.MstArticles
                                        where d.ManualArticleCode.Equals(objShopOrder.ItemCode)
@@ -281,6 +299,7 @@ namespace EasyfisShop.ApiControllers
                                 responseStatusCode = HttpStatusCode.NotFound;
                                 responseMessage = "Shop order number: " + objShopOrder.SPNumber + " is already exist.";
 
+                                newShopOrders = new List<Entities.TrnShopOrder>();
                                 break;
                             }
 
