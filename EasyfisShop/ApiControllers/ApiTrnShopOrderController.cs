@@ -269,12 +269,19 @@ namespace EasyfisShop.ApiControllers
                                 break;
                             }
 
-                            var defaultSPNumber = FillLeadingZeroes(count, 10);
-                            var lastShopOrder = from d in db.TrnShopOrders.OrderByDescending(d => d.Id) where d.BranchId == currentUser.FirstOrDefault().BranchId select d;
-                            if (lastShopOrder.Any())
+                            var order = from d in db.TrnShopOrders
+                                        where d.SPNumber.Equals(objShopOrder.SPNumber)
+                                        && d.IsLocked == true
+                                        select d;
+
+                            if (order.Any())
                             {
-                                var SPNumber = (Convert.ToInt32(lastShopOrder.FirstOrDefault().SPNumber) + 0000000001) + count;
-                                defaultSPNumber = FillLeadingZeroes(SPNumber, 10);
+                                isValid = false;
+
+                                responseStatusCode = HttpStatusCode.NotFound;
+                                responseMessage = "Shop order number: " + objShopOrder.SPNumber + " is already exist.";
+
+                                break;
                             }
 
                             if (isValid)
@@ -282,7 +289,7 @@ namespace EasyfisShop.ApiControllers
                                 newShopOrders.Add(new Entities.TrnShopOrder()
                                 {
                                     BranchId = currentUser.FirstOrDefault().BranchId,
-                                    SPNumber = defaultSPNumber,
+                                    SPNumber = objShopOrder.SPNumber,
                                     SPDate = objShopOrder.SPDate,
                                     ItemId = itemId,
                                     Quantity = objShopOrder.Quantity,
@@ -300,41 +307,44 @@ namespace EasyfisShop.ApiControllers
                                     UpdatedById = currentUser.FirstOrDefault().Id,
                                     UpdatedDateTime = DateTime.Now.ToShortDateString()
                                 });
-                            }
 
-                            count += 1;
+                                count += 1;
+                            }
                         }
 
-                        if (newShopOrders.Any())
+                        if ((count - 1) == objShopOrders.Count())
                         {
-                            foreach (var objNewShopOrder in newShopOrders)
+                            if (newShopOrders.Any())
                             {
-                                Data.TrnShopOrder newShopOrder = new Data.TrnShopOrder
+                                foreach (var objNewShopOrder in newShopOrders)
                                 {
-                                    BranchId = objNewShopOrder.BranchId,
-                                    SPNumber = objNewShopOrder.SPNumber,
-                                    SPDate = Convert.ToDateTime(objNewShopOrder.SPDate),
-                                    ItemId = objNewShopOrder.ItemId,
-                                    Quantity = objNewShopOrder.Quantity,
-                                    UnitId = objNewShopOrder.UnitId,
-                                    Amount = objNewShopOrder.Amount,
-                                    ShopOrderStatusId = objNewShopOrder.ShopOrderStatusId,
-                                    ShopOrderStatusDate = Convert.ToDateTime(objNewShopOrder.ShopOrderStatusDate),
-                                    ShopGroupId = objNewShopOrder.ShopGroupId,
-                                    Particulars = objNewShopOrder.Particulars,
-                                    Status = objNewShopOrder.Status,
-                                    IsPrinted = objNewShopOrder.IsPrinted,
-                                    IsLocked = objNewShopOrder.IsLocked,
-                                    CreatedById = objNewShopOrder.CreatedById,
-                                    CreatedDateTime = Convert.ToDateTime(objNewShopOrder.CreatedDateTime),
-                                    UpdatedById = objNewShopOrder.UpdatedById,
-                                    UpdatedDateTime = Convert.ToDateTime(objNewShopOrder.UpdatedDateTime),
-                                };
+                                    Data.TrnShopOrder newShopOrder = new Data.TrnShopOrder
+                                    {
+                                        BranchId = objNewShopOrder.BranchId,
+                                        SPNumber = objNewShopOrder.SPNumber,
+                                        SPDate = Convert.ToDateTime(objNewShopOrder.SPDate),
+                                        ItemId = objNewShopOrder.ItemId,
+                                        Quantity = objNewShopOrder.Quantity,
+                                        UnitId = objNewShopOrder.UnitId,
+                                        Amount = objNewShopOrder.Amount,
+                                        ShopOrderStatusId = objNewShopOrder.ShopOrderStatusId,
+                                        ShopOrderStatusDate = Convert.ToDateTime(objNewShopOrder.ShopOrderStatusDate),
+                                        ShopGroupId = objNewShopOrder.ShopGroupId,
+                                        Particulars = objNewShopOrder.Particulars,
+                                        Status = objNewShopOrder.Status,
+                                        IsPrinted = objNewShopOrder.IsPrinted,
+                                        IsLocked = objNewShopOrder.IsLocked,
+                                        CreatedById = objNewShopOrder.CreatedById,
+                                        CreatedDateTime = Convert.ToDateTime(objNewShopOrder.CreatedDateTime),
+                                        UpdatedById = objNewShopOrder.UpdatedById,
+                                        UpdatedDateTime = Convert.ToDateTime(objNewShopOrder.UpdatedDateTime),
+                                    };
 
-                                db.TrnShopOrders.InsertOnSubmit(newShopOrder);
+                                    db.TrnShopOrders.InsertOnSubmit(newShopOrder);
+                                }
+
+                                db.SubmitChanges();
                             }
-
-                            db.SubmitChanges();
                         }
                     }
                 }
@@ -378,18 +388,10 @@ namespace EasyfisShop.ApiControllers
                 else if (!shopGroup.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop group not found."; }
                 else
                 {
-                    var defaultSPNumber = "0000000001";
-                    var lastShopOrder = from d in db.TrnShopOrders.OrderByDescending(d => d.Id) where d.BranchId == currentUser.FirstOrDefault().BranchId select d;
-                    if (lastShopOrder.Any())
-                    {
-                        var SPNumber = Convert.ToInt32(lastShopOrder.FirstOrDefault().SPNumber) + 0000000001;
-                        defaultSPNumber = FillLeadingZeroes(SPNumber, 10);
-                    }
-
                     Data.TrnShopOrder newShopOrder = new Data.TrnShopOrder
                     {
                         BranchId = currentUser.FirstOrDefault().BranchId,
-                        SPNumber = defaultSPNumber,
+                        SPNumber = "NA",
                         SPDate = DateTime.Today,
                         ItemId = item.OrderByDescending(d => d.Article).FirstOrDefault().Id,
                         Quantity = 0,
@@ -441,6 +443,7 @@ namespace EasyfisShop.ApiControllers
                 var unit = from d in db.MstUnits where d.Id == objShopOrder.UnitId select d;
                 var shopOrderStatus = from d in db.MstShopOrderStatus where d.Id == objShopOrder.ShopOrderStatusId select d;
                 var shopGroup = from d in db.MstShopGroups where d.Id == objShopOrder.ShopGroupId select d;
+                var order = from d in db.TrnShopOrders where d.SPNumber.Equals(objShopOrder.SPNumber) && d.IsLocked == true select d;
 
                 if (!userForm.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "No rights."; }
                 else if (!userForm.FirstOrDefault().CanLock) { responseStatusCode = HttpStatusCode.BadRequest; responseMessage = "No lock rights."; }
@@ -450,20 +453,22 @@ namespace EasyfisShop.ApiControllers
                 else if (!unit.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Unit not found."; }
                 else if (!shopOrderStatus.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop order status not found."; }
                 else if (!shopGroup.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop group not found."; }
+                else if (order.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop order number: " + objShopOrder.SPNumber + " is already exist."; }
                 else
                 {
-                    var lockShopOrder = shopOrder.FirstOrDefault();
-                    lockShopOrder.SPDate = Convert.ToDateTime(objShopOrder.SPDate);
-                    lockShopOrder.ItemId = item.FirstOrDefault().Id;
-                    lockShopOrder.Quantity = objShopOrder.Quantity;
-                    lockShopOrder.UnitId = unit.FirstOrDefault().Id;
-                    lockShopOrder.Amount = objShopOrder.Amount;
-                    lockShopOrder.ShopOrderStatusId = shopOrderStatus.FirstOrDefault().Id;
-                    lockShopOrder.ShopOrderStatusDate = Convert.ToDateTime(objShopOrder.ShopOrderStatusDate);
-                    lockShopOrder.ShopGroupId = shopGroup.FirstOrDefault().Id;
-                    lockShopOrder.Particulars = objShopOrder.Particulars;
-                    lockShopOrder.UpdatedById = currentUser.FirstOrDefault().Id;
-                    lockShopOrder.UpdatedDateTime = DateTime.Now;
+                    var saveShopOrder = shopOrder.FirstOrDefault();
+                    saveShopOrder.SPDate = Convert.ToDateTime(objShopOrder.SPDate);
+                    saveShopOrder.SPNumber = objShopOrder.SPNumber;
+                    saveShopOrder.ItemId = item.FirstOrDefault().Id;
+                    saveShopOrder.Quantity = objShopOrder.Quantity;
+                    saveShopOrder.UnitId = unit.FirstOrDefault().Id;
+                    saveShopOrder.Amount = objShopOrder.Amount;
+                    saveShopOrder.ShopOrderStatusId = shopOrderStatus.FirstOrDefault().Id;
+                    saveShopOrder.ShopOrderStatusDate = Convert.ToDateTime(objShopOrder.ShopOrderStatusDate);
+                    saveShopOrder.ShopGroupId = shopGroup.FirstOrDefault().Id;
+                    saveShopOrder.Particulars = objShopOrder.Particulars;
+                    saveShopOrder.UpdatedById = currentUser.FirstOrDefault().Id;
+                    saveShopOrder.UpdatedDateTime = DateTime.Now;
                     db.SubmitChanges();
                 }
 
@@ -494,6 +499,7 @@ namespace EasyfisShop.ApiControllers
                 var unit = from d in db.MstUnits where d.Id == objShopOrder.UnitId select d;
                 var shopOrderStatus = from d in db.MstShopOrderStatus where d.Id == objShopOrder.ShopOrderStatusId select d;
                 var shopGroup = from d in db.MstShopGroups where d.Id == objShopOrder.ShopGroupId select d;
+                var order = from d in db.TrnShopOrders where d.SPNumber.Equals(objShopOrder.SPNumber) && d.IsLocked == true select d;
 
                 if (!userForm.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "No rights."; }
                 else if (!userForm.FirstOrDefault().CanLock) { responseStatusCode = HttpStatusCode.BadRequest; responseMessage = "No lock rights."; }
@@ -503,10 +509,12 @@ namespace EasyfisShop.ApiControllers
                 else if (!unit.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Unit not found."; }
                 else if (!shopOrderStatus.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop order status not found."; }
                 else if (!shopGroup.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop group not found."; }
+                else if (order.Any()) { responseStatusCode = HttpStatusCode.NotFound; responseMessage = "Shop order number: " + objShopOrder.SPNumber + " is already exist."; }
                 else
                 {
                     var lockShopOrder = shopOrder.FirstOrDefault();
                     lockShopOrder.SPDate = Convert.ToDateTime(objShopOrder.SPDate);
+                    lockShopOrder.SPNumber = objShopOrder.SPNumber;
                     lockShopOrder.ItemId = item.FirstOrDefault().Id;
                     lockShopOrder.Quantity = objShopOrder.Quantity;
                     lockShopOrder.UnitId = unit.FirstOrDefault().Id;
